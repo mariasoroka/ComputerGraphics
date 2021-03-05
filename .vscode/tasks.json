@@ -1,0 +1,30 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cppbuild",
+			"label": "C/C++: g++ build project",
+			"command": "/bin/g++",
+			"args": [
+				"-g",
+				"task1.cpp", "surface_from_image.cpp",
+				"-o",
+				"task1",
+				"-lglfw",
+				"-lGLU",
+				"-lGL",
+				"-lGLEW",
+				"-L/usr/local/lib",
+				"-lIL"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build",
+			"detail": "compiler: /bin/g++"
+		}
+	]
+}
