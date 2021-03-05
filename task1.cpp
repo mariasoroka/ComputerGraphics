@@ -1,3 +1,4 @@
+//export LD_LIBRARY_PATH=/usr/local/lib
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "surface_from_image.h"
@@ -8,7 +9,14 @@
 
 #include <iostream>
 #include <vector>
-
+glm::vec3 cameraPos   = glm::vec3(2.0f, 2.0f,  1.0f);
+glm::vec3 cameraFront = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 cameraUp    = glm::vec3(0.0f, 0.0f,  1.0f);
+GLfloat yaw   = -90.0f;
+GLfloat pitch = 0.0f;
+GLfloat lastX = -1;
+GLfloat lastY = -1;
+GLfloat fov = 45.0f;
 //Функция обратного вызова для обработки событий клавиатуры
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -17,11 +25,60 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         //Если нажата клавиша ESCAPE, то закрываем окно
         glfwSetWindowShouldClose(window, GL_TRUE);
     }
-    if (key == GLFW_KEY_W){
+
+    GLfloat cameraSpeed = 0.05f;
+    if(key == GLFW_KEY_W)
+        cameraPos += cameraSpeed * cameraFront;
+    if(key == GLFW_KEY_S)
+        cameraPos -= cameraSpeed * cameraFront;
+    if(key == GLFW_KEY_A)
+        cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+    if(key == GLFW_KEY_D)
+        cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed; 
+}
+void mouseCallback(GLFWwindow* window, double xpos, double ypos){
+    GLfloat xoffset = 0;
+    GLfloat yoffset = 0;
+    GLfloat sensitivity = 0.05f;
+    int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+    if (state == GLFW_PRESS){
+        if(lastX != -1 && lastY != -1){
+            xoffset = xpos - lastX;
+            yoffset = ypos - lastY; // Обратный порядок вычитания потому что оконные Y-координаты возрастают с верху вниз 
+            xoffset *= sensitivity;
+            yoffset *= sensitivity;
+            yaw   += xoffset;
+            pitch += yoffset;
+            if(pitch > 89.0f){
+                pitch =  89.0f;
+            }
+            if(pitch < -89.0f){
+                pitch = -89.0f;
+            }
+            glm::vec3 front;
+            front.x = cos(glm::radians(pitch)) * cos(glm::radians(yaw));
+            front.z = sin(glm::radians(pitch));
+            front.y = cos(glm::radians(pitch)) * sin(glm::radians(yaw));
+            cameraFront = glm::normalize(front);
         
+        }
+        lastX = xpos;
+        lastY = ypos;
+    }
+    else{
+        lastX = -1;
+        lastY = -1;
     }
 }
-
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+  if(fov >= 1.0f && fov <= 45.0f)
+  	fov -= yoffset;
+  if(fov <= 1.0f)
+  	fov = 1.0f;
+  if(fov >= 45.0f)
+  	fov = 45.0f;
+}
 int main()
 {
     //Инициализируем библиотеку GLFW
@@ -51,11 +108,18 @@ int main()
 
     //Устанавливаем функцию обратного вызова для обработки событий клавиатуры
     glfwSetKeyCallback(window, keyCallback);
-
+    glfwSetCursorPosCallback(window, mouseCallback);
+    // glfwSetScrollCallback(window, scrollCallback);
+    glfwSetCursorPos 	(window, 400, 400); 	
+    // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     //Инициализируем библиотеку GLEW
     glewExperimental = GL_TRUE;
     glewInit();
-
+    glClearColor(0.3f, 0.8f, 1.0f, 1.0f);
+    // Enable depth test
+    glEnable(GL_DEPTH_TEST);
+    // Accept fragment if it closer to the camera than the former one
+    glDepthFunc(GL_LESS);
     //=========================================================
     ilInit();
     //Координаты вершин треугольника
@@ -132,7 +196,7 @@ int main()
     // glm::mat4 ModMat = glm::translate(glm::mat4(1.0f), glm::vec3(-0.5f, -0.5f, 0.0f));
     // ModMat = glm::rotate(ModMat, 0.0f, glm::vec3(0.0f, 0.0f, 1.0f));
     
-    glm::mat4 ModMat = glm::scale(glm::mat4(1.0f), glm::vec3(2.0, 2.0, 1.0));
+    glm::mat4 ModMat = glm::scale(glm::mat4(1.0f), glm::vec3(3.0, 3.0, 1.0));
     ModMat = glm::translate(ModMat, glm::vec3(-0.5f, -0.5f, 0.0f));
     ModMat = glm::rotate(ModMat, 0.0f, glm::vec3(0.0f, 0.0f, 1.0f));
     // ModMat = glm::scale(ModMat, glm::vec3(2.0, 2.0, 1.0));
@@ -140,11 +204,11 @@ int main()
     // и смотрит в центр мира
     // Верх - сверху (установите на (0, -1, 0), чтобы смотреть сверху вниз)
     glm::mat4 ViewMat = glm::lookAt( glm::vec3(0.0, 0.0, 2), glm::vec3(0.0f, 0.0f,0.0f), glm::vec3(0,-1,0) );
-    glm::mat4 ProjMat = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 100.0f);
+    glm::mat4 ProjMat = glm::perspective(fov, 1.0f, 0.1f, 100.0f);
     // glm::mat4 ProjMat = glm::ortho(-1.5, 0.5, -1.5, 0.5);
-
+    // lastX = 400, lastY = 400;
     // glm::mat4 myModelMatrix = glm::mat4(1.0f);
-    
+ 
     //Вершинный шейдер
     const char* vertexShaderText =
         "#version 330\n"
@@ -155,7 +219,7 @@ int main()
         "out vec4 color;\n"
         "void main()\n"
         "{\n"
-        "   color = vec4(0.1, 0.0, vertexPosition.z , 1.0);\n"
+        "   color = vec4(0.1, 0.0, sqrt(vertexPosition.z) , 1.0);\n"
         "   gl_Position = ProjMat * ViewMat * ModMat * vec4(vertexPosition, 1.0);\n"
             // "gl_Position = ModMat * vec4(vertexPosition, 1.0);\n"
         "}\n";
@@ -277,6 +341,14 @@ int main()
 
         //Подключаем шейдерную программу
         glUseProgram(program);
+
+        // GLfloat radius = 2.0f;
+        // GLfloat camX = sin(glfwGetTime()) * radius;
+        // GLfloat camY = cos(glfwGetTime()) * radius;
+        // glm::mat4 view;
+        // ViewMat = glm::lookAt(glm::vec3(camX, camY, 1.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 0.0, 1.0));
+        ProjMat = glm::perspective(fov, 1.0f, 0.1f, 100.0f);
+        ViewMat = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         GLint uniformLocMod = glGetUniformLocation(program, "ModMat");
         glUniformMatrix4fv(uniformLocMod, 1, 0, glm::value_ptr(ModMat));
         GLint uniformLocView = glGetUniformLocation(program, "ViewMat");
