@@ -7,7 +7,7 @@
 			"command": "/bin/g++",
 			"args": [
 				"-g",
-				"task1.cpp", "surface_from_image.cpp",
+				"task1.cpp", "surface_from_image.cpp", "normals_calculator.cpp",
 				"-o",
 				"task1",
 				"-lglfw",
