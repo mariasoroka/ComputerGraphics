@@ -6,9 +6,10 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
+#include "normals_calculator.h"
 #include <iostream>
 #include <vector>
+
 glm::vec3 cameraPos   = glm::vec3(2.0f, 2.0f,  1.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 1.0f, 0.0f);
 glm::vec3 cameraUp    = glm::vec3(0.0f, 0.0f,  1.0f);
@@ -17,6 +18,7 @@ GLfloat pitch = 0.0f;
 GLfloat lastX = -1;
 GLfloat lastY = -1;
 GLfloat fov = 45.0f;
+
 //Функция обратного вызова для обработки событий клавиатуры
 void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -25,7 +27,6 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         //Если нажата клавиша ESCAPE, то закрываем окно
         glfwSetWindowShouldClose(window, GL_TRUE);
     }
-
     GLfloat cameraSpeed = 0.05f;
     if(key == GLFW_KEY_W)
         cameraPos += cameraSpeed * cameraFront;
@@ -44,7 +45,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos){
     if (state == GLFW_PRESS){
         if(lastX != -1 && lastY != -1){
             xoffset = xpos - lastX;
-            yoffset = ypos - lastY; // Обратный порядок вычитания потому что оконные Y-координаты возрастают с верху вниз 
+            yoffset = ypos - lastY; 
             xoffset *= sensitivity;
             yoffset *= sensitivity;
             yaw   += xoffset;
@@ -73,7 +74,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos){
 void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
   if(fov >= 1.0f && fov <= 45.0f)
-  	fov -= yoffset;
+  	fov -= yoffset * 0.1;
   if(fov <= 1.0f)
   	fov = 1.0f;
   if(fov >= 45.0f)
@@ -109,7 +110,7 @@ int main()
     //Устанавливаем функцию обратного вызова для обработки событий клавиатуры
     glfwSetKeyCallback(window, keyCallback);
     glfwSetCursorPosCallback(window, mouseCallback);
-    // glfwSetScrollCallback(window, scrollCallback);
+    glfwSetScrollCallback(window, scrollCallback);
     glfwSetCursorPos 	(window, 400, 400); 	
     // glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     //Инициализируем библиотеку GLEW
@@ -123,7 +124,7 @@ int main()
     //=========================================================
     ilInit();
     //Координаты вершин треугольника
-    PointStruct* p = GetPoints("image_final");
+    PointStruct* p = GetPoints("b.png");
     std::cout << p->width << " " << p->height << std::endl;
     GLuint number_of_points = p->width * p->height;
     // for(int i = 0; i < number_of_points; i+=1){
@@ -132,46 +133,81 @@ int main()
     // std::cout << p->width << " " << p->height << std::endl;
     // std::cout << "end!" << std::endl;
 
+    GLfloat* normals = (GLfloat*)malloc(3 * number_of_points * sizeof(GLfloat));
 
-    //Создаем буфер VertexBufferObject для хранения координат на видеокарте
+    for(int i = 0; i < p->height; i++){
+        for(int j = 0; j < p->width; j++){
+            int point_number = (i * p->width + j);
+            glm::vec3 res = normal(i, j, p->width, p->height, p->points);
+            normals[point_number * 3] = res[0];
+            normals[point_number * 3 + 1] = res[1];
+            normals[point_number * 3 + 2] = res[2];
+        }
+    }
+    GLfloat* vert = (GLfloat*)malloc(2 * 3 * number_of_points * sizeof(GLfloat));
+    for(int i = 0; i < 3 * number_of_points; i++){
+        vert[i] = p->points[i];
+    }
+    for(int i = 3 * number_of_points; i < 6 * number_of_points; i++){
+        vert[i] = normals[i - 3 * number_of_points];
+    }
+    free(p->points);
+    free(normals);
     GLuint vbo;
     glGenBuffers(1, &vbo);
-
     //Делаем этот буфер текущим
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
     //Копируем содержимое массива в буфер на видеокарте
-    glBufferData(GL_ARRAY_BUFFER, number_of_points * 3 * sizeof(float), p->points, GL_STATIC_DRAW);
-    // glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(float), points, GL_STATIC_DRAW);
-
+    glBufferData(GL_ARRAY_BUFFER, 6 * number_of_points * sizeof(float), vert, GL_STATIC_DRAW);
     //=========================================================
-
     //Создаем объект VertexArrayObject для хранения настроек полигональной модели
     GLuint vao;
     glGenVertexArrays(1, &vao);
-
     //Делаем этот объект текущим
     glBindVertexArray(vao);
-
     //Делаем буфер с координатами текущим
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-    //Включаем 0й вершинный атрибут
+    //Включаем 0й вершинный атрибут - координаты
     glEnableVertexAttribArray(0);
-
-    //Устанавливаем настройки:
-    //0й атрибут,
-    //3 компоненты типа GL_FLOAT,
-    //не нужно нормализовать,
-    //0 - значения расположены в массиве впритык,
-    //0 - сдвиг от начала
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<void*>(0));
-    // std::cout << "ready!" << std::endl;
+    //Включаем 1й вершинный атрибут - цвета
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<void *>(0));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, reinterpret_cast<void *>(3 * number_of_points * sizeof(float)));
     glBindVertexArray(0);
+
+    //Создаем буфер VertexBufferObject для хранения координат на видеокарте
+    // GLuint coord;
+    // GLuint normal;
+    // glGenBuffers(1, &coord);
+    // glGenBuffers(1, &normal);
+    // glNamedBufferData(coord, number_of_points * 3 * sizeof(float), p->points, GL_STATIC_DRAW);
+    // glNamedBufferData(normal, number_of_points * 3 * sizeof(float), normals, GL_STATIC_DRAW);
+    // GLuint vao;
+    // glCreateVertexArrays(1, &vao);
+    // glEnableVertexArrayAttrib(vao, 0);
+    // glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+
+    // glEnableVertexArrayAttrib(vao, 1);
+    // glVertexArrayAttribFormat(vao, 1, 3, GL_FLOAT, GL_FALSE, 0);
+
+    // glVertexArrayAttribBinding(vao, 0, 0);
+    // glVertexArrayAttribBinding(vao, 1, 1);
+
+    // GLuint firstBinding = 0;
+    // GLsizei bindingsCount = 2;
+    // GLsizei bindingsCount = 1;
+    // std::vector<GLuint> buffers = {coord, normal };
+    // std::vector<GLintptr> offsets = {0, 0};
+    // std::vector<GLsizei> strides = { static_cast<GLsizei>(3 * sizeof(float)),
+    //     static_cast<GLsizei>(3 * sizeof(float)) };
+    // std::vector<GLuint> buffers = {coord};
+    // std::vector<GLintptr> offsets = {0};
+    // std::vector<GLsizei> strides = { static_cast<GLsizei>(3 * sizeof(float))};
+    // glVertexArrayVertexBuffers(vao, firstBinding, bindingsCount, buffers.data(), offsets.data(), strides.data());
+
     GLuint number_of_triangles = (p->height - 1) * (p->width - 1) * 2;
     GLuint* indices = (GLuint*)malloc(number_of_triangles * 3 * sizeof(GLuint));
     GLuint counter = 0;
-    // std::cout << "ready!" << std::endl;
     for(unsigned int i = 0; i < (p->height - 1); i++){
         for(unsigned int j = 0; j < (p->width - 1); j++){
             indices[counter * 3] = j + i * p->width;
@@ -188,26 +224,17 @@ int main()
     //     std::cout << indices[i * 3] << " " << indices[i * 3 + 1] << " " << indices[i * 3 + 2] << " " << std::endl;
     // }
     // std::cout << "ready!" << std::endl;
+
     GLuint elementbuffer;
     glGenBuffers(1, &elementbuffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elementbuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, number_of_triangles * 3 * sizeof(GL_UNSIGNED_INT), indices, GL_STATIC_DRAW);
     //=========================================================
-    // glm::mat4 ModMat = glm::translate(glm::mat4(1.0f), glm::vec3(-0.5f, -0.5f, 0.0f));
-    // ModMat = glm::rotate(ModMat, 0.0f, glm::vec3(0.0f, 0.0f, 1.0f));
-    
     glm::mat4 ModMat = glm::scale(glm::mat4(1.0f), glm::vec3(3.0, 3.0, 1.0));
     ModMat = glm::translate(ModMat, glm::vec3(-0.5f, -0.5f, 0.0f));
-    ModMat = glm::rotate(ModMat, 0.0f, glm::vec3(0.0f, 0.0f, 1.0f));
-    // ModMat = glm::scale(ModMat, glm::vec3(2.0, 2.0, 1.0));
-    // Камера находится на (4, 3, 3) в мировых координатах
-    // и смотрит в центр мира
-    // Верх - сверху (установите на (0, -1, 0), чтобы смотреть сверху вниз)
-    glm::mat4 ViewMat = glm::lookAt( glm::vec3(0.0, 0.0, 2), glm::vec3(0.0f, 0.0f,0.0f), glm::vec3(0,-1,0) );
+    glm::mat4 ViewMat = glm::lookAt( glm::vec3(0.0, 0.0, 2), glm::vec3(0.0f, 0.0f,0.0f), glm::vec3(0,0,1) );
     glm::mat4 ProjMat = glm::perspective(fov, 1.0f, 0.1f, 100.0f);
-    // glm::mat4 ProjMat = glm::ortho(-1.5, 0.5, -1.5, 0.5);
-    // lastX = 400, lastY = 400;
-    // glm::mat4 myModelMatrix = glm::mat4(1.0f);
+
  
     //Вершинный шейдер
     const char* vertexShaderText =
@@ -216,10 +243,11 @@ int main()
         "uniform mat4 ViewMat;\n"
         "uniform mat4 ProjMat;\n"
         "layout(location = 0) in vec3 vertexPosition;\n"
+        "layout(location = 1) in vec3 vertexNormal;\n"
         "out vec4 color;\n"
         "void main()\n"
         "{\n"
-        "   color = vec4(0.1, 0.0, sqrt(vertexPosition.z) , 1.0);\n"
+        "   color = vec4(0.1, 0.0, (vertexPosition.z) , 1.0);\n"
         "   gl_Position = ProjMat * ViewMat * ModMat * vec4(vertexPosition, 1.0);\n"
             // "gl_Position = ModMat * vec4(vertexPosition, 1.0);\n"
         "}\n";
@@ -374,7 +402,7 @@ int main()
     glDeleteBuffers(1, &vbo);
 
     glfwTerminate();
-    free(p->points);
     free(p);
+    free(vert);
     return 0;
 }
