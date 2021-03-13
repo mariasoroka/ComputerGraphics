@@ -1,7 +1,5 @@
-//export LD_LIBRARY_PATH=/usr/local/lib
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include "surface_from_image.h"
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -9,6 +7,7 @@
 #include "normals_calculator.h"
 #include <iostream>
 #include <vector>
+#include <SOIL2.h>
 
 glm::vec3 cameraPos   = glm::vec3(2.0f, 2.0f,  1.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -74,7 +73,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos){
 void scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
   if(fov >= 1.0f && fov <= 45.0f)
-  	fov -= yoffset * 0.1;
+  	fov -= yoffset * 0.05;
   if(fov <= 1.0f)
   	fov = 1.0f;
   if(fov >= 45.0f)
@@ -122,37 +121,39 @@ int main()
     // Accept fragment if it closer to the camera than the former one
     glDepthFunc(GL_LESS);
     //=========================================================
-    ilInit();
     //Координаты вершин треугольника
-    PointStruct* p = GetPoints("b.png");
-    std::cout << p->width << " " << p->height << std::endl;
-    GLuint number_of_points = p->width * p->height;
-    // for(int i = 0; i < number_of_points; i+=1){
-    //     std::cout << p->points[3 * i] << " " << p->points[3 * i + 1] << " " << p->points[3 * i + 2] << " " <<std::endl;
-    // }
-    // std::cout << p->width << " " << p->height << std::endl;
-    // std::cout << "end!" << std::endl;
+    int width;
+    int height;
+    int channels = 1;
+    unsigned char *ht_map = SOIL_load_image
+    	(
+    		"771SorokaData1/b.png",
+    		&width, &height, &channels,
+    		SOIL_LOAD_L
+    );
 
-    GLfloat* normals = (GLfloat*)malloc(3 * number_of_points * sizeof(GLfloat));
+    std::cout << width << " " << height << std::endl;
+    GLuint number_of_points = width * height;
 
-    for(int i = 0; i < p->height; i++){
-        for(int j = 0; j < p->width; j++){
-            int point_number = (i * p->width + j);
-            glm::vec3 res = normal(i, j, p->width, p->height, p->points);
-            normals[point_number * 3] = res[0];
-            normals[point_number * 3 + 1] = res[1];
-            normals[point_number * 3 + 2] = res[2];
+    GLfloat* vert = (GLfloat*)malloc(2 * 3 * number_of_points * sizeof(GLfloat));
+    for(int i = 0; i < height; i++){
+        for(int j = 0; j < width; j++){
+            int point_number = i * width + j;
+            vert[point_number * 3] = (GLfloat)i / height;
+            vert[point_number * 3 + 1] = (GLfloat)j / width;
+            vert[point_number * 3 + 2] = (GLfloat)(ht_map[point_number])/ 255;
         }
     }
-    GLfloat* vert = (GLfloat*)malloc(2 * 3 * number_of_points * sizeof(GLfloat));
-    for(int i = 0; i < 3 * number_of_points; i++){
-        vert[i] = p->points[i];
+    for(int i = 0; i < height; i++){
+        for(int j = 0; j < width; j++){
+            int point_number = (i * width + j);
+            glm::vec3 res = normal(i, j, width, height, vert);
+            vert[3 * number_of_points + point_number * 3] = res[0];
+            vert[3 * number_of_points + point_number * 3 + 1] = res[1];
+            vert[3 * number_of_points + point_number * 3 + 2] = res[2];
+        }
     }
-    for(int i = 3 * number_of_points; i < 6 * number_of_points; i++){
-        vert[i] = normals[i - 3 * number_of_points];
-    }
-    free(p->points);
-    free(normals);
+
     GLuint vbo;
     glGenBuffers(1, &vbo);
     //Делаем этот буфер текущим
@@ -205,18 +206,18 @@ int main()
     // std::vector<GLsizei> strides = { static_cast<GLsizei>(3 * sizeof(float))};
     // glVertexArrayVertexBuffers(vao, firstBinding, bindingsCount, buffers.data(), offsets.data(), strides.data());
 
-    GLuint number_of_triangles = (p->height - 1) * (p->width - 1) * 2;
+    GLuint number_of_triangles = (height - 1) * (width - 1) * 2;
     GLuint* indices = (GLuint*)malloc(number_of_triangles * 3 * sizeof(GLuint));
     GLuint counter = 0;
-    for(unsigned int i = 0; i < (p->height - 1); i++){
-        for(unsigned int j = 0; j < (p->width - 1); j++){
-            indices[counter * 3] = j + i * p->width;
-            indices[counter * 3 + 1] = j + p->width + i * p->width;
-            indices[counter * 3 + 2] = j + 1 + i * p->width;
+    for(unsigned int i = 0; i < (height - 1); i++){
+        for(unsigned int j = 0; j < (width - 1); j++){
+            indices[counter * 3] = j + i * width;
+            indices[counter * 3 + 1] = j + width + i * width;
+            indices[counter * 3 + 2] = j + 1 + i * width;
             counter++;
-            indices[counter * 3] = j + p->width + i * p->width;
-            indices[counter * 3 + 1] = j + p->width + 1 + i * p->width;
-            indices[counter * 3 + 2] = j + 1 + i * p->width;
+            indices[counter * 3] = j + width + i * width;
+            indices[counter * 3 + 1] = j + width + 1 + i * width;
+            indices[counter * 3 + 2] = j + 1 + i * width;
             counter++;
         }
     }
@@ -388,8 +389,6 @@ int main()
 
         //Рисуем полигональную модель (состоит из треугольников, сдвиг 0, количество вершин 3)
         glDrawElements(GL_TRIANGLES, number_of_triangles * 3, GL_UNSIGNED_INT, indices);
-        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, indices);
-        // glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         glfwSwapBuffers(window); //Переключаем передний и задний буферы
     }
@@ -400,9 +399,8 @@ int main()
     glDeleteShader(fs);
     glDeleteVertexArrays(1, &vao);
     glDeleteBuffers(1, &vbo);
-
+    SOIL_free_image_data( ht_map );
     glfwTerminate();
-    free(p);
     free(vert);
     return 0;
 }

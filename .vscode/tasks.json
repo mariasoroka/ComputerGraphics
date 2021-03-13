@@ -7,15 +7,16 @@
 			"command": "/bin/g++",
 			"args": [
 				"-g",
-				"task1.cpp", "surface_from_image.cpp", "normals_calculator.cpp",
+				"task1.cpp", "normals_calculator.cpp",
 				"-o",
 				"task1",
+				"-I/home/maria/libs/SOIL/src/SOIL2",
 				"-lglfw",
 				"-lGLU",
 				"-lGL",
 				"-lGLEW",
-				"-L/usr/local/lib",
-				"-lIL"
+				"-L/home/maria/libs/SOIL/lib/linux",
+				"-lsoil2-debug"
 			],
 			"options": {
 				"cwd": "${workspaceFolder}"
