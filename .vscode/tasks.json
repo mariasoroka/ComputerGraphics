@@ -3,13 +3,39 @@
 	"tasks": [
 		{
 			"type": "cppbuild",
-			"label": "C/C++: g++ build project",
+			"label": "C/C++: g++ build task 1",
 			"command": "/bin/g++",
 			"args": [
 				"-g",
-				"task1.cpp", "normals_calculator.cpp",
+				"task1.cpp", "for_surf_calc.cpp",
 				"-o",
 				"task1",
+				"-I/home/maria/libs/SOIL/src/SOIL2",
+				"-lglfw",
+				"-lGLU",
+				"-lGL",
+				"-lGLEW",
+				"-L/home/maria/libs/SOIL/lib/linux",
+				"-lsoil2-debug"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build",
+			"detail": "compiler: /bin/g++"
+		},
+		{
+			"type": "cppbuild",
+			"label": "C/C++: g++ build task 2",
+			"command": "/bin/g++",
+			"args": [
+				"-g",
+				"task2.cpp", "for_surf_calc.cpp",
+				"-o",
+				"task2",
 				"-I/home/maria/libs/SOIL/src/SOIL2",
 				"-lglfw",
 				"-lGLU",

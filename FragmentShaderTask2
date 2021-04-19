@@ -1,0 +1,23 @@
+#version 330
+in vec4 colorRock;
+in vec4 colorMoss;
+in vec4 colorFlower;
+in vec4 colorSnow;
+in vec2 TexCoord;
+uniform sampler2D rockTexture;
+uniform sampler2D mossTexture;
+uniform sampler2D flowerTexture;
+uniform sampler2D snowTexture;
+uniform sampler2D templateTexture;
+out vec4 fragColor;
+
+void main()
+{
+    vec4 templateColor = texture(templateTexture, TexCoord * 0.05);
+    vec4 rockColor = texture(rockTexture, TexCoord) * colorRock;
+    vec4 mossColor = texture(mossTexture, TexCoord) * colorMoss;
+    vec4 flowerColor = texture(flowerTexture, TexCoord) * colorFlower;
+    vec4 snowColor = texture(snowTexture, TexCoord) * colorSnow;
+    vec4 templateColorChanged = vec4(templateColor.rgb, 1 - templateColor.a);
+    fragColor = mat4(rockColor, mossColor, flowerColor, snowColor) * templateColorChanged;
+};

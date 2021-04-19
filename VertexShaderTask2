@@ -1,0 +1,57 @@
+#version 330
+struct LightInfo {
+    vec3 dir;
+    vec3 La;
+    vec3 Ld;
+    vec3 Ls;
+};
+struct MaterialProp {
+    vec3 color;
+    vec3 a_ref;
+    vec3 d_ref;
+    vec3 s_ref;
+    float shininess;
+};
+
+uniform mat4 ModMat;
+uniform mat4 ViewMat;
+uniform mat4 ProjMat;
+uniform LightInfo Light;
+uniform MaterialProp Rock;
+uniform MaterialProp Moss;
+uniform MaterialProp Flower;
+uniform MaterialProp Snow;
+uniform mat4 NormMat;
+uniform vec3 CamPos;
+layout(location = 0) in vec3 vertexPosition;
+layout(location = 1) in vec3 vertexNormal;
+layout(location = 2) in vec2 texCoord;
+out vec4 colorRock;
+out vec4 colorMoss;
+out vec4 colorFlower;
+out vec4 colorSnow;
+out vec2 TexCoord;
+
+void main()
+{
+    vec4 NormalInWorldSyst = NormMat * vec4(vertexNormal, 0.0);
+    NormalInWorldSyst = normalize(NormalInWorldSyst);
+    vec3 CamDir = normalize(CamPos);
+    vec4 h = vec4(normalize(CamDir - Light.dir), 0.0);
+    float diff = max(dot(NormalInWorldSyst, vec4(-Light.dir, 0.0)), 0.0);
+
+    float specRock = pow(max(dot(NormalInWorldSyst, h), 0.0), Rock.shininess);
+    colorRock = vec4(Rock.color * (Light.La * Rock.a_ref + Light.Ld * Rock.d_ref * diff + Light.Ls * Rock.s_ref * specRock), 1.0);
+
+    float specMoss = pow(max(dot(NormalInWorldSyst, h), 0.0), Moss.shininess);
+    colorMoss = vec4(Moss.color * (Light.La * Moss.a_ref + Light.Ld * Moss.d_ref * diff + Light.Ls * Moss.s_ref * specMoss), 1.0);
+
+    float specFlower = pow(max(dot(NormalInWorldSyst, h), 0.0), Flower.shininess);
+    colorFlower = vec4(Flower.color * (Light.La * Flower.a_ref + Light.Ld * Flower.d_ref * diff + Light.Ls * Flower.s_ref * specFlower), 1.0);
+
+    float specSnow = pow(max(dot(NormalInWorldSyst, h), 0.0), Snow.shininess);
+    colorSnow = vec4(Snow.color * (Light.La * Snow.a_ref + Light.Ld * Snow.d_ref * diff + Light.Ls * Snow.s_ref * specSnow), 1.0);
+
+    gl_Position = ProjMat * ViewMat * ModMat * vec4(vertexPosition, 1.0);
+    TexCoord = texCoord;
+};
